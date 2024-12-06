@@ -55,27 +55,14 @@ pub fn part_one(input: &str) -> Option<u32> {
 pub fn part_two(input: &str) -> Option<u32> {
     let (_unused, ops) = parse_input(input).unwrap();
 
-    let (_enabled, enabled_ops) =
+    let (_enabled, sum_product) =
         ops.iter()
-            .fold((true, Vec::<_>::new()), |(enabled, mut ops), op| {
-                match (enabled, op) {
-                    (true, Op::Mul(_)) => {
-                        ops.push(op);
-                        (true, ops)
-                    }
-                    (_, Op::Do) => (true, ops),
-                    (_, Op::Dont) => (false, ops),
-                    _ => (enabled, ops),
-                }
+            .fold((true, 0), |(enabled, acc), op| match (enabled, op) {
+                (true, &Op::Mul((a, b))) => (true, acc + a * b),
+                (_, Op::Do) => (true, acc),
+                (_, Op::Dont) => (false, acc),
+                _ => (enabled, acc),
             });
-
-    let sum_product = enabled_ops
-        .iter()
-        .filter_map(|op| match op {
-            Op::Mul((a, b)) => Some(a * b),
-            _ => None,
-        })
-        .sum();
 
     Some(sum_product)
 }
