@@ -12,8 +12,8 @@ enum Block {
 
 #[derive(Clone)]
 enum BlockSegment {
-    Free(usize),
-    Used(usize, usize),
+    Free(i32, usize),
+    Used(i32, usize, usize),
 }
 
 impl fmt::Debug for Block {
@@ -26,11 +26,21 @@ impl fmt::Debug for Block {
     }
 }
 
+// impl fmt::Debug for BlockSegment {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let out = match self {
+//             BlockSegment::Free(bid, size) => format!("Free: {}:({})", bid, size),
+//             BlockSegment::Used(bid, sid, size) => format!("Used: {}:({}, {})", bid, sid, size),
+//         };
+//         write!(f, "{}", out)
+//     }
+// }
+
 impl fmt::Debug for BlockSegment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let out = match self {
-            BlockSegment::Free(size) => size.to_string(),
-            BlockSegment::Used(id, size) => format!("({}, {})", id.to_string(), size.to_string()),
+            BlockSegment::Free(_bid, size) => ".".repeat(*size),
+            BlockSegment::Used(_bid, sid, size) => sid.to_string().repeat(*size),
         };
         write!(f, "{}", out)
     }
@@ -41,12 +51,12 @@ fn dense_disk_map_to_sparse(disk_map: &str) -> Vec<Block> {
         .chars()
         .map(|c| c.to_digit(10).unwrap() as usize)
         .enumerate()
-        .flat_map(|(ix, digit)| {
+        .flat_map(|(ix, size)| {
             let block_type = match (ix % 2) == 0 {
                 true => Block::Used(ix / 2),
                 false => Block::Free,
             };
-            std::iter::repeat(block_type).take(digit)
+            std::iter::repeat(block_type).take(size)
         })
         .collect()
 }
@@ -56,9 +66,10 @@ fn dense_disk_map_to_segments(disk_map: &str) -> Vec<BlockSegment> {
         .chars()
         .map(|c| c.to_digit(10).unwrap() as usize)
         .enumerate()
-        .map(|(ix, digit)| match (ix % 2) == 0 {
-            true => BlockSegment::Used(ix / 2, digit),
-            false => BlockSegment::Free(digit),
+        .filter(|&(_, size)| size > 0)
+        .map(|(ix, size)| match (ix % 2) == 0 {
+            true => BlockSegment::Used(ix as i32, ix / 2, size),
+            false => BlockSegment::Free(ix as i32, size),
         })
         .collect()
 }
@@ -102,39 +113,52 @@ pub fn part_two(input: &str) -> Option<usize> {
     let segments = dense_disk_map_to_segments(disk_map);
     let mut compacted = segments.clone();
 
-    let mut checksum = 0;
-    let last_segment_ix = segments.len() - 1;
-    let mut inserted = 0;
-
-    for segment_ix in (0..=last_segment_ix).rev() {
-        let segment = &segments[segment_ix];
-
-        if let BlockSegment::Used(_id, segment_size) = segment {
-            println!("Segment: {:?}", &segment);
+    for segment in segments.iter().rev() {
+        if let BlockSegment::Used(bid, _sid, size) = segment {
             // Find the first free segment with size at least segment_size
-            let maybe_free_space_ix = compacted[0..last_segment_ix+inserted]
+            let maybe_free_space_ix = compacted
                 .iter()
-                .position(|segment| matches!(segment, BlockSegment::Free(s) if s>=segment_size));
+                .take_while(
+                    |segment| !matches!(segment, BlockSegment::Used(this_bid, ..) if this_bid==bid),
+                )
+                .position(|segment| matches!(segment, BlockSegment::Free(_, s) if s>=size));
 
             if let Some(free_space_ix) = maybe_free_space_ix {
-                println!("Free space found {:?}", compacted[free_space_ix]);
-                compacted.swap(segment_ix+inserted, free_space_ix);
-                if let BlockSegment::Free(free_size) = &compacted[free_space_ix] {
-                    if free_size > segment_size {
+                if let BlockSegment::Free(free_bid, free_size) =
+                    compacted[free_space_ix]
+                {
+                    if free_size > *size {
+                        compacted[free_space_ix] =
+                            BlockSegment::Free(free_bid, *size);
                         compacted.insert(
                             free_space_ix + 1,
-                            BlockSegment::Free(free_size - segment_size),
+                            BlockSegment::Free(-free_bid, free_size - size),
                         );
-                        inserted += 1;
                     }
+                    let segment_ix = compacted
+                        .iter()
+                        .position(
+                            |s| matches!(s, BlockSegment::Used(this_bid, ..) if this_bid==bid),
+                        )
+                        .unwrap();
+                    compacted.swap(segment_ix, free_space_ix);
                 }
-            } else {
-                println!("No free space found!");
             }
         }
     }
 
-    dbg!(compacted);
+    let (_, checksum) = compacted
+        .iter()
+        .fold((0, 0), |(block_ix, checksum), s| match s {
+            BlockSegment::Free(_, size) => (block_ix + size, checksum),
+            BlockSegment::Used(_, sid, size) => (
+                block_ix + size,
+                checksum
+                    + (block_ix..(block_ix + size))
+                        .map(|ix| ix * sid)
+                        .sum::<usize>(),
+            ),
+        });
 
     Some(checksum)
 }
@@ -152,6 +176,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(2858));
     }
 }

@@ -6,6 +6,9 @@ edition = "2021"
 default-run = "advent_of_code"
 publish = false
 
+[profile.release]
+debug = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 doctest = false
