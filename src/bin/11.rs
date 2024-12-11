@@ -1,46 +1,39 @@
+use cached::proc_macro::cached;
+
 advent_of_code::solution!(11);
 
-fn parse_input(input: &str) -> Vec<String> {
+fn parse_input(input: &str) -> Vec<u64> {
     input
-        .lines()
-        .next()
-        .map(|l| l.split_ascii_whitespace().map(String::from).collect())
-        .unwrap()
+        .split_ascii_whitespace()
+        .map(|x| x.parse::<u64>().unwrap())
+        .collect()
 }
 
-fn process_stone(stone: &mut String) -> Option<String> {
-    let is_even = (stone.len() % 2) == 0;
-    let hlf_len = stone.len() / 2;
-    match stone.as_str() {
-        "0" => stone="1",
-        _ if is_even => vec![
-            stone[0..(hlf_len)].parse::<u64>().unwrap().to_string(),
-            stone[hlf_len..].parse::<u64>().unwrap().to_string(),
-        ],
-        _ => vec![(stone.parse::<u64>().unwrap() * 2024).to_string()],
+#[cached]
+fn process_stone(stone: u64, blinks: u64) -> u64 {
+    let digits = stone.checked_ilog10().unwrap_or(0) + 1;
+
+    match (stone, blinks) {
+        (_, 1) => 1,
+        (0, _) => process_stone(1, blinks - 1),
+        (_s, _) if (digits % 2) == 0 => {
+            let op = 10_u64.pow(digits / 2);
+            process_stone(stone / op, blinks - 1) + process_stone(stone % op, blinks - 1)
+        }
+        _ => process_stone(stone * 2024, blinks - 1),
     }
-    None
 }
 
-pub fn part_one(input: &str) -> Option<usize> {
-    let mut stones = parse_input(input);
+pub fn part_one(input: &str) -> Option<u64> {
+    let stones = parse_input(input);
 
-    for _ in 0..25 {
-        stones = stones.iter().flat_map(|s|process_stone(s)).collect();
-    }
-
-    Some(stones.len())
+    Some(stones.into_iter().map(|init| process_stone(init, 25)).sum())
 }
 
-pub fn part_two(input: &str) -> Option<usize> {
-    let mut stones = parse_input(input);
+pub fn part_two(input: &str) -> Option<u64> {
+    let stones = parse_input(input);
 
-    for _ in 0..75 {
-        stones = stones.iter().flat_map(|s|process_stone(s)).collect();
-    }
-    print!("There are {} stones.", stones.len());
-
-    Some(stones.len())
+    Some(stones.into_iter().map(|init| process_stone(init, 75)).sum())
 }
 
 #[cfg(test)]
@@ -50,12 +43,12 @@ mod tests {
     #[test]
     fn test_part_one() {
         let result = part_one(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(55312));
+        assert_eq!(result, Some(36359));
     }
 
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, Some(0));
+        assert_eq!(result, Some(43195257325345));
     }
 }
