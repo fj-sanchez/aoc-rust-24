@@ -124,12 +124,9 @@ pub fn part_two(input: &str) -> Option<usize> {
                 .position(|segment| matches!(segment, BlockSegment::Free(_, s) if s>=size));
 
             if let Some(free_space_ix) = maybe_free_space_ix {
-                if let BlockSegment::Free(free_bid, free_size) =
-                    compacted[free_space_ix]
-                {
+                if let BlockSegment::Free(free_bid, free_size) = compacted[free_space_ix] {
                     if free_size > *size {
-                        compacted[free_space_ix] =
-                            BlockSegment::Free(free_bid, *size);
+                        compacted[free_space_ix] = BlockSegment::Free(free_bid, *size);
                         compacted.insert(
                             free_space_ix + 1,
                             BlockSegment::Free(-free_bid, free_size - size),
