@@ -1,6 +1,6 @@
 use core::fmt;
-use std::collections::HashSet;
 
+use gxhash::{HashSet, HashSetExt};
 use pathfinding::matrix::{directions, Matrix};
 
 advent_of_code::solution!(6);
@@ -101,12 +101,29 @@ fn _print_grid(grid: Matrix<GridKind>) {
     }
 }
 
+// this is only to optimise the runtime of part 2
+#[inline]
+fn guard_to_u32(guard: Guard) -> u32 {
+    (guard.position.0 as u32)
+        + ((guard.position.1 as u32) << 8)
+        + ((to2bit(guard.direction.0) + (to2bit(guard.direction.1) << 8)) << 16)
+}
+
+#[inline]
+fn to2bit(x: isize) -> u32 {
+    match x {
+        _ if x == 0 => 0,
+        _ if x > 0 => 1,
+        _ => 2,
+    }
+}
+
 fn has_cycle(guard: &Guard, grid: &Matrix<GridKind>, obstacle_pos: Position) -> bool {
     let mut guard = *guard;
 
-    let mut visited = HashSet::new();
+    let mut visited = HashSet::with_capacity(10000);
 
-    visited.insert(guard);
+    visited.insert(guard_to_u32(guard));
     while let Some(next_pos) = grid.move_in_direction(guard.position, guard.direction) {
         let next_grid = if next_pos == obstacle_pos {
             &GridKind::Block
@@ -118,7 +135,7 @@ fn has_cycle(guard: &Guard, grid: &Matrix<GridKind>, obstacle_pos: Position) -> 
             GridKind::Free => guard.position = next_pos,
             _ => panic!(),
         }
-        if !visited.insert(guard) {
+        if !visited.insert(guard_to_u32(guard)) {
             return true;
         }
     }
@@ -127,7 +144,7 @@ fn has_cycle(guard: &Guard, grid: &Matrix<GridKind>, obstacle_pos: Position) -> 
 
 pub fn part_one(input: &str) -> Option<usize> {
     let (grid, mut guard) = parse_input(input);
-    let mut visited = HashSet::new();
+    let mut visited = HashSet::with_capacity(10000);
 
     visited.insert(guard.position);
     while let Some(next_pos) = grid.move_in_direction(guard.position, guard.direction) {
@@ -145,7 +162,7 @@ pub fn part_one(input: &str) -> Option<usize> {
 pub fn part_two(input: &str) -> Option<usize> {
     let (grid, guard) = parse_input(input);
     let mut dummy_guard = guard;
-    let mut guard_path = HashSet::new();
+    let mut guard_path = HashSet::with_capacity(10000);
 
     while let Some(next_pos) = grid.move_in_direction(dummy_guard.position, dummy_guard.direction) {
         match grid.get(next_pos).unwrap() {
