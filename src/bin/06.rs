@@ -1,11 +1,17 @@
-advent_of_code::solution!(6);
+use core::fmt;
+use std::collections::HashSet;
 
-use pathfinding::matrix::{directions::{self, DIRECTIONS_4}, Matrix};
+use pathfinding::matrix::{
+    directions::{self, DIRECTIONS_4},
+    Matrix,
+};
+
+advent_of_code::solution!(6);
 
 type Position = (usize, usize);
 type Direction = (isize, isize);
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct Guard {
     position: Position,
     direction: Direction,
@@ -29,6 +35,20 @@ impl GridKind {
     }
 }
 
+impl fmt::Display for GridKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                GridKind::Block => "#",
+                GridKind::Free => ".",
+                GridKind::Guard(_) => "o",
+            }
+        )
+    }
+}
+
 impl Guard {
     fn dir_from_char(g: &GridKind) -> Direction {
         match g {
@@ -41,24 +61,34 @@ impl Guard {
     }
 
     fn turn_right(mut self) {
-        self.direction = DIRECTIONS_4.iter().cycle().skip_while(|p| p!=self.direction).next().unwrap();
+        self.direction = DIRECTIONS_4
+            .iter()
+            .cycle()
+            .skip_while(|&&p| p != self.direction)
+            .next()
+            .unwrap()
+            .to_owned();
     }
 }
 
 fn parse_input(input: &str) -> (Matrix<GridKind>, Guard) {
-    let grid = Matrix::from_rows(
+    let mut grid = Matrix::from_rows(
         input
             .lines()
             .map(|l| l.chars().map(GridKind::parse_grid_kind)),
     )
     .unwrap();
 
-    let guard = grid
-        .items()
+    let guard: Guard = grid
+        .items_mut()
         .find(|(_, kind)| matches!(kind, GridKind::Guard(_)))
-        .map(|(position, guard_kind)| Guard {
-            position,
-            direction: Guard::dir_from_char(guard_kind),
+        .map(|(position, kind)| {
+            let guard = Guard {
+                position,
+                direction: Guard::dir_from_char(kind),
+            };
+            *kind = GridKind::Free;
+            guard
         })
         .unwrap();
 
@@ -66,9 +96,29 @@ fn parse_input(input: &str) -> (Matrix<GridKind>, Guard) {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let (grid, guard) = parse_input(input);
+    let (grid, mut guard) = parse_input(input);
+    let mut visited = HashSet::new();
+    
+    visited.insert(guard.position);
+    while let Some(next_pos) = grid.move_in_direction(guard.position, guard.direction) {
+        match grid.get(next_pos).unwrap() {
+            GridKind::Block => guard.turn_right(),
+            GridKind::Free => guard.position = next_pos,
+            _ => panic!(),
+        }
+        visited.insert(guard.position);
+    }
 
-    Some(0)
+    Some(visited.len() as u32)
+}
+
+fn print_grid(grid: Matrix<GridKind>) {
+    for r in grid.iter() {
+        for x in r {
+            print!("{x}");
+        }
+        println!();
+    }
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
