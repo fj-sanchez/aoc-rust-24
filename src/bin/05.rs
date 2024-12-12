@@ -38,83 +38,42 @@ fn parse_input(input: &str) -> IResult<&str, (Rules, Updates)> {
     Ok((input, (rules, updates)))
 }
 
+fn is_valid_update(update: &[u32], rules: &Rules) -> bool {
+    update.iter().is_sorted_by(|a, b| match rules.get(b) {
+        Some(prev) => prev.contains(a),
+        None => false,
+    })
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let (_input, (rules, updates)) = parse_input(input).unwrap();
 
     Some(
         updates
             .iter()
-            .filter_map(|update| {
-                let mid = update.len() / 2;
-                update
-                    .iter()
-                    .tuple_windows()
-                    .all(|(a, b)| match rules.get(b) {
-                        Some(prev_pages) => prev_pages.contains(a),
-                        None => false,
-                    })
-                    .then_some(update[mid])
-            })
+            .filter(|&update| is_valid_update(update, &rules))
+            .map(|update| update[update.len() / 2])
             .sum(),
     )
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let (_input, (rules, mut updates)) = parse_input(input).unwrap();
-
-    let invalid_indices = updates
-        .iter()
-        .enumerate()
-        .flat_map(|(ix, update)| {
-            update
-                .iter()
-                .tuple_windows()
-                .enumerate()
-                .flat_map(|(i, (a, b))| match rules.get(b) {
-                    Some(prev) if !prev.contains(a) => Some((ix, i + 1)),
-                    None => Some((ix, i + 1)),
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
-        })
-        .into_group_map();
-
-    invalid_indices.iter().for_each(|(&update_ix, pages_ix)| {
-        let update = &mut updates[update_ix];
-        // println!("Starting to fix {update:#?}");
-        let pages: Vec<_> = pages_ix
-            .iter()
-            // .sorted()
-            .rev()
-            .map(|&page_ix| update.remove(page_ix))
-            .collect();
-        // println!("Incorrect pages: {pages:#?}");
-
-        for page in pages {
-            if let Some((correct_position, _)) =
-                update.iter().enumerate().find(|&(_upd_ix, upd_page)| {
-                    let Some(prev) = rules.get(upd_page) else {
-                        return false;
-                    };
-                    if prev.contains(&page) {
-                        // println!("Found right position for {page} before page {upd_page}");
-                        true
-                    } else {
-                        false
-                    }
-                })
-            {
-                update.insert(correct_position, page);
-                // dbg!(&update);
-            }
-        }
-    });
+    let (_input, (rules, updates)) = parse_input(input).unwrap();
 
     Some(
-        invalid_indices
-            .keys()
-            .map(|&upd_ix| (upd_ix, updates[upd_ix].len() / 2))
-            .map(|(upd_ix, mid)| updates[upd_ix][mid])
+        updates
+            .iter()
+            .filter(|&update| !is_valid_update(update, &rules))
+            .filter_map(|update| {
+                update
+                    .iter()
+                    .sorted_by(|a, b| match rules.get(b) {
+                        Some(prev) if prev.contains(a) => std::cmp::Ordering::Less,
+                        None => std::cmp::Ordering::Greater,
+                        _ => std::cmp::Ordering::Equal,
+                    })
+                    .nth(update.len() / 2)
+            })
             .sum(),
     )
 }
