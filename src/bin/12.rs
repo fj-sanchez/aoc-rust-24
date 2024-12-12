@@ -13,6 +13,27 @@ fn parse_input(input: &str) -> Matrix<char> {
     Matrix::from_rows(input.lines().map(|l| l.chars())).unwrap()
 }
 
+fn count_sides(coord: &(usize, usize), plot: &Grid) -> usize {
+    const CORNER_ENDS: [[(isize, isize); 3]; 4] = [
+        [directions::E, directions::S, directions::SE],
+        [directions::W, directions::S, directions::SW],
+        [directions::S, directions::E, directions::SE],
+        [directions::N, directions::E, directions::NE],
+    ];
+
+    CORNER_ENDS
+        .iter()
+        .filter(|corner_end| {
+            let dimensions = (plot.width, plot.height);
+            let edge = move_in_direction(*coord, corner_end[0], dimensions).unwrap_or_default();
+            let corner1 = move_in_direction(*coord, corner_end[1], dimensions).unwrap_or_default();
+            let corner2 = move_in_direction(*coord, corner_end[2], dimensions).unwrap_or_default();
+
+            !plot.has_vertex(edge) && (!plot.has_vertex(corner1) || plot.has_vertex(corner2))
+        })
+        .count()
+}
+
 pub fn part_one(input: &str) -> Option<usize> {
     let map = parse_input(input);
 
@@ -47,27 +68,7 @@ pub fn part_one(input: &str) -> Option<usize> {
     Some(result)
 }
 
-fn count_sides(coord: &(usize, usize), plot: &Grid) -> u32 {
-    const CORNER_ENDS: [[(isize, isize); 3]; 4] = [
-        [directions::E, directions::S, directions::SE],
-        [directions::W, directions::S, directions::SW],
-        [directions::S, directions::E, directions::SE],
-        [directions::N, directions::E, directions::NE],
-    ];
-
-    CORNER_ENDS.iter()
-        .filter(|corner_end| {
-            let dimensions = (plot.width, plot.height);
-            let edge = move_in_direction(*coord, corner_end[0], dimensions).unwrap_or_default();
-            let corner1 = move_in_direction(*coord, corner_end[1], dimensions).unwrap_or_default();
-            let corner2 = move_in_direction(*coord, corner_end[2], dimensions).unwrap_or_default();
-
-            !plot.has_vertex(edge) && (!plot.has_vertex(corner1) || plot.has_vertex(corner2))
-        })
-        .count() as u32
-}
-
-pub fn part_two(input: &str) -> Option<u32> {
+pub fn part_two(input: &str) -> Option<usize> {
     let map = parse_input(input);
 
     let plants: BTreeSet<char> = map
@@ -76,7 +77,7 @@ pub fn part_two(input: &str) -> Option<u32> {
         .unique()
         .cloned()
         .collect();
-    
+
     let mut result = 0;
 
     for plant in &plants {
@@ -89,12 +90,12 @@ pub fn part_two(input: &str) -> Option<u32> {
         while let Some(coord) = plant_coords.iter().next() {
             let garden_plot = Grid::from_iter(plant_coords.bfs_reachable(coord, |_| true));
 
-            let sides: u32 = garden_plot
+            let sides: usize = garden_plot
                 .iter()
                 .map(|v| count_sides(&v, &garden_plot))
                 .sum();
 
-            result += garden_plot.vertices_len() as u32 * sides;
+            result += garden_plot.vertices_len() * sides;
             garden_plot.iter().for_each(|v| {
                 plant_coords.remove_vertex(v);
             });
