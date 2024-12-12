@@ -1,23 +1,20 @@
 use core::fmt;
 use std::collections::HashSet;
 
-use pathfinding::matrix::{
-    directions::{self, DIRECTIONS_4},
-    Matrix,
-};
+use pathfinding::matrix::{directions, Matrix};
 
 advent_of_code::solution!(6);
 
 type Position = (usize, usize);
 type Direction = (isize, isize);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Guard {
     position: Position,
     direction: Direction,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum GridKind {
     Block,
     Free,
@@ -60,14 +57,14 @@ impl Guard {
         }
     }
 
-    fn turn_right(mut self) {
-        self.direction = DIRECTIONS_4
-            .iter()
-            .cycle()
-            .skip_while(|&&p| p != self.direction)
-            .next()
-            .unwrap()
-            .to_owned();
+    fn turn_right(&mut self) {
+        self.direction = match self.direction {
+            directions::N => directions::E,
+            directions::E => directions::S,
+            directions::S => directions::W,
+            directions::W => directions::N,
+            _ => panic!("Invalid guard direction"),
+        };
     }
 }
 
@@ -95,10 +92,43 @@ fn parse_input(input: &str) -> (Matrix<GridKind>, Guard) {
     (grid, guard)
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+fn _print_grid(grid: Matrix<GridKind>) {
+    for r in grid.iter() {
+        for x in r {
+            print!("{x}");
+        }
+        println!();
+    }
+}
+
+fn has_cycle(guard: &Guard, grid: &Matrix<GridKind>, obstacle_pos: Position) -> bool {
+    let mut guard = *guard;
+
+    let mut visited = HashSet::new();
+
+    visited.insert(guard);
+    while let Some(next_pos) = grid.move_in_direction(guard.position, guard.direction) {
+        let next_grid = if next_pos == obstacle_pos {
+            &GridKind::Block
+        } else {
+            grid.get(next_pos).unwrap()
+        };
+        match next_grid {
+            GridKind::Block => guard.turn_right(),
+            GridKind::Free => guard.position = next_pos,
+            _ => panic!(),
+        }
+        if !visited.insert(guard) {
+            return true;
+        }
+    }
+    false
+}
+
+pub fn part_one(input: &str) -> Option<usize> {
     let (grid, mut guard) = parse_input(input);
     let mut visited = HashSet::new();
-    
+
     visited.insert(guard.position);
     while let Some(next_pos) = grid.move_in_direction(guard.position, guard.direction) {
         match grid.get(next_pos).unwrap() {
@@ -109,20 +139,29 @@ pub fn part_one(input: &str) -> Option<u32> {
         visited.insert(guard.position);
     }
 
-    Some(visited.len() as u32)
+    Some(visited.len())
 }
 
-fn print_grid(grid: Matrix<GridKind>) {
-    for r in grid.iter() {
-        for x in r {
-            print!("{x}");
+pub fn part_two(input: &str) -> Option<usize> {
+    let (grid, guard) = parse_input(input);
+    let mut dummy_guard = guard;
+    let mut guard_path = HashSet::new();
+
+    while let Some(next_pos) = grid.move_in_direction(dummy_guard.position, dummy_guard.direction) {
+        match grid.get(next_pos).unwrap() {
+            GridKind::Block => dummy_guard.turn_right(),
+            GridKind::Free => dummy_guard.position = next_pos,
+            _ => panic!(),
         }
-        println!();
+        guard_path.insert(dummy_guard.position);
     }
-}
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+    Some(
+        guard_path
+            .iter()
+            .filter(|&&obs| has_cycle(&guard, &grid, obs))
+            .count(),
+    )
 }
 
 #[cfg(test)]
@@ -138,6 +177,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(6));
     }
 }
