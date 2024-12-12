@@ -1,7 +1,5 @@
 use core::fmt;
 
-use pathfinding::num_traits::Zero;
-
 advent_of_code::solution!(9);
 
 #[derive(Clone)]
@@ -25,16 +23,6 @@ impl fmt::Debug for Block {
         write!(f, "{}", out)
     }
 }
-
-// impl fmt::Debug for BlockSegment {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let out = match self {
-//             BlockSegment::Free(bid, size) => format!("Free: {}:({})", bid, size),
-//             BlockSegment::Used(bid, sid, size) => format!("Used: {}:({}, {})", bid, sid, size),
-//         };
-//         write!(f, "{}", out)
-//     }
-// }
 
 impl fmt::Debug for BlockSegment {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
