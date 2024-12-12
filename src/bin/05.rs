@@ -9,7 +9,6 @@ use nom::{
     sequence::{separated_pair, terminated},
     IResult,
 };
-use pathfinding::num_traits::ops::inv;
 
 advent_of_code::solution!(5);
 
@@ -60,39 +59,64 @@ pub fn part_one(input: &str) -> Option<u32> {
     )
 }
 
-fn fix_invalid(invalid: Vec<u32>, rules: &Rules) -> Vec<u32> {
-    
-    let bad: Vec<_> = invalid.iter()
-    .tuple_windows()
-    .filter(|&(a, b)| match rules.get(b) {
-        Some(prev_pages) => !prev_pages.contains(a),
-        None => true,
-    }).collect();
-
-    invalid.
-
-    invalid
-}
-
 pub fn part_two(input: &str) -> Option<u32> {
-    let (_input, (rules, updates)) = parse_input(input).unwrap();
+    let (_input, (rules, mut updates)) = parse_input(input).unwrap();
 
-    let invalid: Vec<_> = updates
+    let invalid_indices = updates
         .iter()
-        .filter(|update| {
+        .enumerate()
+        .flat_map(|(ix, update)| {
             update
                 .iter()
                 .tuple_windows()
-                .any(|(a, b)| match rules.get(b) {
-                    Some(prev_pages) => !prev_pages.contains(a),
-                    None => true,
+                .enumerate()
+                .flat_map(|(i, (a, b))| match rules.get(b) {
+                    Some(prev) if !prev.contains(a) => Some((ix, i + 1)),
+                    None => Some((ix, i + 1)),
+                    _ => None,
                 })
+                .collect::<Vec<_>>()
         })
-        .collect();
+        .into_group_map();
 
-    dbg!(invalid);
-    
-    Some(0)
+    invalid_indices.iter().for_each(|(&update_ix, pages_ix)| {
+        let update = &mut updates[update_ix];
+        // println!("Starting to fix {update:#?}");
+        let pages: Vec<_> = pages_ix
+            .iter()
+            // .sorted()
+            .rev()
+            .map(|&page_ix| update.remove(page_ix))
+            .collect();
+        // println!("Incorrect pages: {pages:#?}");
+
+        for page in pages {
+            if let Some((correct_position, _)) =
+                update.iter().enumerate().find(|&(_upd_ix, upd_page)| {
+                    let Some(prev) = rules.get(upd_page) else {
+                        return false;
+                    };
+                    if prev.contains(&page) {
+                        // println!("Found right position for {page} before page {upd_page}");
+                        true
+                    } else {
+                        false
+                    }
+                })
+            {
+                update.insert(correct_position, page);
+                // dbg!(&update);
+            }
+        }
+    });
+
+    Some(
+        invalid_indices
+            .keys()
+            .map(|&upd_ix| (upd_ix, updates[upd_ix].len() / 2))
+            .map(|(upd_ix, mid)| updates[upd_ix][mid])
+            .sum(),
+    )
 }
 
 #[cfg(test)]
