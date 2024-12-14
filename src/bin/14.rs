@@ -3,10 +3,7 @@ use std::{thread::sleep, time};
 use itertools::Itertools;
 use nom::{
     bytes::complete::tag,
-    character::{
-        self,
-        complete::{char, i32, line_ending, space1},
-    },
+    character::complete::{char, i32, line_ending, space1},
     combinator::map,
     multi::many1,
     sequence::{preceded, separated_pair, terminated},
