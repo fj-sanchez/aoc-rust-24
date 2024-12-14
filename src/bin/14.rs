@@ -23,7 +23,7 @@ const HEIGHT: i32 = 7;
 
 type XY = (i32, i32);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct Robot {
     position: XY,
     velocity: XY,
@@ -77,29 +77,31 @@ pub fn part_two(input: &str) -> Option<bool> {
     let (_input, mut robots) = parse_input(input).unwrap();
     let steps = 1;
 
-    if PLAY_PART2 {
-        for t in 0..7700 {
-            robots.iter_mut().for_each(move |r| {
-                r.position = (
-                    ((r.position.0 + r.velocity.0 * steps).rem_euclid(WIDTH)),
-                    ((r.position.1 + r.velocity.1 * steps).rem_euclid(HEIGHT)),
-                );
-            });
+    let mut found = false;
+    let mut t = 0;
+    while !found {
+        robots.iter_mut().for_each(move |r| {
+            r.position = (
+                ((r.position.0 + r.velocity.0 * steps).rem_euclid(WIDTH)),
+                ((r.position.1 + r.velocity.1 * steps).rem_euclid(HEIGHT)),
+            );
+        });
+        t += 1;
 
+        found = robots.iter().map(|r| r.position).all_unique();
+
+        // print only 100 frames around the solution
+        if PLAY_PART2 && found {
             let g = Grid::from_iter(
                 robots
                     .iter()
                     .map(|r| (r.position.0 as usize, r.position.1 as usize)),
             );
-            // print only 100 frames around the solution
-            if t > 7600 {
-                // reset cursor to top left
-                print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
-                println!("t={t}\n{g:#?}");
-                sleep(time::Duration::from_millis(50));
-            }
+            println!("t={t}\n{g:#?}");
+            sleep(time::Duration::from_millis(50));
         }
     }
+
     None
 }
 
