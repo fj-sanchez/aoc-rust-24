@@ -1,87 +1,59 @@
 advent_of_code::solution!(7);
 
-#[derive(Clone, Copy)]
-enum Operator {
-    Add,
-    Multiply,
-    // Easy to add more operators in the future, e.g.:
-    // Subtract,
-    // Divide,
-    // Modulo,
-}
-
-impl Operator {
-    fn apply(&self, left: i64, right: i64) -> i64 {
-        match self {
-            Operator::Add => left + right,
-            Operator::Multiply => left * right,
-            // Additional operators would be added here
-        }
-    }
-}
-
-fn solve_equation(test_value: i64, nums: &[i64]) -> bool {
-    // Generate all possible operator configurations
-    let operator_count = nums.len() - 1;
-
-    // Early exit if impossible
-    if operator_count == 0 {
-        return nums[0] == test_value;
+fn is_solvable(test_value: u64, rev_nums: &[u64], use_concat: bool) -> bool {
+    let &num = rev_nums.first().unwrap();
+    if rev_nums.len() == 1 {
+        return test_value == num;
     }
 
-    // Try all possible combinations of operators
-    for config in 0..(1 << (2 * operator_count)) {
-        let mut operators = vec![Operator::Add; operator_count];
+    let (r, q) = (test_value % num, test_value / num);
+    if r == 0 && is_solvable(q, &rev_nums[1..], use_concat) {
+        return true;
+    }
 
-        // Convert the current configuration to operator choices
-        for i in 0..operator_count {
-            match (config >> (2 * i)) & 3 {
-                0 => operators[i] = Operator::Add,
-                1 => operators[i] = Operator::Multiply,
-                _ => continue, // Skip invalid configurations
-            }
-        }
-
-        let result = evaluate_expression(nums, &operators);
-        if result == test_value {
+    if use_concat {
+        let num_digits = 10u64.pow(num.ilog10() + 1);
+        let end_equal = (test_value.abs_diff(num) % num_digits) == 0;
+        if end_equal && is_solvable(test_value / num_digits, &rev_nums[1..], use_concat) {
             return true;
         }
+    }
+
+    if let Some(new_test_value) = test_value.checked_sub(num) {
+        return is_solvable(new_test_value, &rev_nums[1..], use_concat);
     }
 
     false
 }
 
-fn evaluate_expression(nums: &[i64], operators: &[Operator]) -> i64 {
-    let mut result = nums[0];
-    for i in 0..operators.len() {
-        result = operators[i].apply(result, nums[i + 1]);
-    }
-    result
-}
-
-fn parse_equation(line: &str) -> (i64, Vec<i64>) {
+fn parse_equation(line: &str) -> (u64, Vec<u64>) {
     let parts: Vec<&str> = line.split(": ").collect();
-    let test_value: i64 = parts[0].parse().unwrap();
-    let nums: Vec<i64> = parts[1]
+    let test_value: u64 = parts[0].parse().unwrap();
+    let nums: Vec<u64> = parts[1]
         .split_whitespace()
         .map(|x| x.parse().unwrap())
         .collect();
     (test_value, nums)
 }
 
-pub fn part_one(input: &str) -> Option<i64> {
+fn solve(input: &str, use_concat: bool) -> Option<u64> {
     Some(
         input
             .lines()
             .map(parse_equation)
-            .filter(|(test_value, nums)| solve_equation(*test_value, nums))
+            .map(|(test_value, nums)| (test_value, nums.into_iter().rev().collect::<Vec<_>>()))
+            .filter(|(test_value, nums)| is_solvable(*test_value, nums, use_concat))
             .map(|(test_value, _)| test_value)
             .sum(),
     )
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_one(input: &str) -> Option<u64> {
+    solve(input, false)
+}
+
+pub fn part_two(input: &str) -> Option<u64> {
+    solve(input, true)
 }
 
 #[cfg(test)]
@@ -97,6 +69,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(11387));
     }
 }
