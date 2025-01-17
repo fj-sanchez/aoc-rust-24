@@ -13,13 +13,21 @@ use pathfinding::grid::Grid;
 
 advent_of_code::solution!(14);
 
-const PLAY_PART2: bool = false;
+#[cfg(test)]
+mod constants {
+    pub const WIDTH: i32 = 11;
+    pub const HEIGHT: i32 = 7;
+    pub const PLAY_PART2: bool = true;
+}
 
-// const WIDTH: i32 = 101;
-// const HEIGHT: i32 = 103;
+#[cfg(not(test))]
+mod constants {
+    pub const WIDTH: i32 = 101;
+    pub const HEIGHT: i32 = 103;
+    pub const PLAY_PART2: bool = false;
+}
 
-const WIDTH: i32 = 11;
-const HEIGHT: i32 = 7;
+use constants::*;
 
 type XY = (i32, i32);
 
@@ -79,7 +87,7 @@ pub fn part_two(input: &str) -> Option<bool> {
 
     let mut found = false;
     let mut t = 0;
-    while !found {
+    while !found && t < 100000 {
         robots.iter_mut().for_each(move |r| {
             r.position = (
                 ((r.position.0 + r.velocity.0 * steps).rem_euclid(WIDTH)),
@@ -89,20 +97,20 @@ pub fn part_two(input: &str) -> Option<bool> {
         t += 1;
 
         found = robots.iter().map(|r| r.position).all_unique();
-
-        // print only 100 frames around the solution
-        if PLAY_PART2 && found {
-            let g = Grid::from_iter(
-                robots
-                    .iter()
-                    .map(|r| (r.position.0 as usize, r.position.1 as usize)),
-            );
-            println!("t={t}\n{g:#?}");
-            sleep(time::Duration::from_millis(50));
-        }
     }
 
-    None
+    // print only 100 frames around the solution
+    if PLAY_PART2 {
+        let g = Grid::from_iter(
+            robots
+                .iter()
+                .map(|r| (r.position.0 as usize, r.position.1 as usize)),
+        );
+        println!("t={t}\n{g:#?}");
+        sleep(time::Duration::from_millis(50));
+    }
+
+    Some(found)
 }
 
 #[cfg(test)]
@@ -118,6 +126,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(true));
     }
 }
