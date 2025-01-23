@@ -22,7 +22,7 @@ fn is_word_in_direction(
         && (word.len() == 1
             || letters
                 .move_in_direction(*coordinate, *direction)
-                .map_or(false, |next_coord| {
+                .is_some_and(|next_coord| {
                     is_word_in_direction(letters, &next_coord, direction, &word[1..])
                 }))
 }
