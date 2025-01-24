@@ -101,7 +101,7 @@ pub fn part_one(input: &str) -> Option<usize> {
                         map.move_in_direction(coord, dir)
                             .and_then(|cheat_coord| map.move_in_direction(cheat_coord, dir))
                             .filter(|cheat_coord| {
-                                racetrack.get(cheat_coord).map_or(false, |&cheat_pos| {
+                                racetrack.get(cheat_coord).is_some_and(|&cheat_pos| {
                                     cheat_pos - (pos + HACK_TIME_PART_1) >= MIN_SAVING_PART_1
                                 })
                             })
